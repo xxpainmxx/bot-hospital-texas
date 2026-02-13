@@ -8,12 +8,14 @@ const {
     ChannelType
 } = require('discord.js');
 
-const TOKEN = process.env.TOKEN; // No Railway precisa ser assim
+const TOKEN = process.env.TOKEN;
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds]
 });
 
+
+// 🔹 READY (quando o bot liga)
 client.once(Events.ClientReady, async () => {
 
     console.log(`Bot online como ${client.user.tag}`);
@@ -28,79 +30,54 @@ client.once(Events.ClientReady, async () => {
     const rest = new REST({ version: '10' }).setToken(TOKEN);
 
     await rest.put(
-        Routes.applicationGuildCommands(client.user.id, '1347665144808865953'),
+        Routes.applicationGuildCommands(client.user.id, 'COLOQUE_SEU_GUILD_ID_AQUI'),
         { body: commands }
     );
 
     console.log('Comando registrado automaticamente!');
 });
 
+
+// 🔹 AQUI FICA O interactionCreate 👇
 client.on(Events.InteractionCreate, async interaction => {
 
-    // Quando usar o comando /criarpasta
-    if (interaction.isChatInputCommand()) {
-        if (interaction.commandName === 'criarpasta') {
+    if (!interaction.isChatInputCommand()) return;
 
-            const modal = new ModalBuilder()
-                .setCustomId('modal_pasta')
-                .setTitle('Criar Nova Pasta');
+    if (interaction.commandName === 'criarpasta') {
 
-            const nomeInput = new TextInputBuilder()
-                .setCustomId('nome_pasta')
-                .setLabel("Qual o nome da pasta?")
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true);
+        await interaction.deferReply({ ephemeral: true });
 
-            const row = new ActionRowBuilder().addComponents(nomeInput);
-            modal.addComponents(row);
+        try {
 
-            await interaction.showModal(modal);
+            const categoria = await interaction.guild.channels.create({
+                name: "Nova Pasta",
+                type: ChannelType.GuildCategory
+            });
+
+            await interaction.guild.channels.create({
+                name: '📌・informações',
+                type: ChannelType.GuildText,
+                parent: categoria.id
+            });
+
+            await interaction.guild.channels.create({
+                name: '💬・chat',
+                type: ChannelType.GuildText,
+                parent: categoria.id
+            });
+
+            await interaction.editReply({
+                content: "✅ Pasta criada com sucesso!"
+            });
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply({
+                content: "❌ Ocorreu um erro ao criar a pasta."
+            });
         }
     }
-
-    // Quando enviar o nome no modal
- const { ChannelType } = require('discord.js');
-
-if (interaction.isModalSubmit()) {
-    if (interaction.customId === 'modal_pasta') {
-
-        const nome = interaction.fields.getTextInputValue('nome_pasta');
-
-        // Criar categoria
-        const categoria = await interaction.guild.channels.create({
-            name: nome,
-            type: ChannelType.GuildCategory
-        });
-
-        // Criar canais dentro da categoria
-        await interaction.guild.channels.create({
-            name: '📌・informações',
-            type: ChannelType.GuildText,
-            parent: categoria.id
-        });
-
-        await interaction.guild.channels.create({
-            name: '💬・chat',
-            type: ChannelType.GuildText,
-            parent: categoria.id
-        });
-
-        await interaction.guild.channels.create({
-            name: '🎙️・voz',
-            type: ChannelType.GuildVoice,
-            parent: categoria.id
-        });
-
-        await interaction.reply({
-            content: `✅ Pasta **${nome}** criada com canais automáticos!`,
-            ephemeral: true
-        });
-    }
-}
 });
 
 
 client.login(TOKEN);
-
-
-
