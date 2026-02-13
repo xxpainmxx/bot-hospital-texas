@@ -1,83 +1,145 @@
-const { 
-    Client, 
-    GatewayIntentBits, 
-    Events, 
-    REST, 
-    Routes, 
+const {
+    Client,
+    GatewayIntentBits,
+    Events,
+    ChannelType,
+    PermissionsBitField,
+    ButtonBuilder,
+    ButtonStyle,
+    ActionRowBuilder,
     SlashCommandBuilder,
-    ChannelType
+    REST,
+    Routes
 } = require('discord.js');
 
 const TOKEN = process.env.TOKEN;
+const GUILD_ID = '1347665144808865953';
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds]
 });
 
 
-// 🔹 READY (quando o bot liga)
+// 🔥 Quando o bot liga
 client.once(Events.ClientReady, async () => {
 
     console.log(`Bot online como ${client.user.tag}`);
 
     const commands = [
         new SlashCommandBuilder()
-            .setName('criarpasta')
-            .setDescription('Cria uma pasta com canais automáticos')
+            .setName('painel')
+            .setDescription('Envia o painel para criar categoria privada')
             .toJSON()
     ];
 
     const rest = new REST({ version: '10' }).setToken(TOKEN);
 
     await rest.put(
-        Routes.applicationGuildCommands(client.user.id, '1347665144808865953'),
+        Routes.applicationGuildCommands(client.user.id, GUILD_ID),
         { body: commands }
     );
 
-    console.log('Comando registrado automaticamente!');
+    console.log('Comando registrado!');
 });
 
 
-// 🔹 AQUI FICA O interactionCreate 👇
+// 🔥 Interações
 client.on(Events.InteractionCreate, async interaction => {
 
-    if (!interaction.isChatInputCommand()) return;
+    // 🔹 Slash command
+    if (interaction.isChatInputCommand()) {
 
-    if (interaction.commandName === 'criarpasta') {
+        if (interaction.commandName === 'painel') {
 
-        await interaction.deferReply({ ephemeral: true });
+            const botao = new ButtonBuilder()
+                .setCustomId('criar_categoria')
+                .setLabel('⚙️ Criar Minha Categoria')
+                .setStyle(ButtonStyle.Primary);
 
-        try {
+            const row = new ActionRowBuilder().addComponents(botao);
+
+            await interaction.reply({
+                content: "Clique no botão para criar sua categoria privada:",
+                components: [row]
+            });
+        }
+    }
+
+    // 🔹 Clique no botão
+    if (interaction.isButton()) {
+
+        const user = interaction.user;
+
+        // 🔍 Verificar se já existe categoria
+        const categoriaExistente = interaction.guild.channels.cache.find(
+            c => c.type === ChannelType.GuildCategory && c.name === user.username
+        );
+
+        if (interaction.customId === 'criar_categoria') {
+
+            if (categoriaExistente) {
+                return interaction.reply({
+                    content: "❌ Você já possui uma categoria criada.",
+                    ephemeral: true
+                });
+            }
+
+            await interaction.deferReply({ ephemeral: true });
 
             const categoria = await interaction.guild.channels.create({
-                name: "Nova Pasta",
-                type: ChannelType.GuildCategory
+                name: user.username,
+                type: ChannelType.GuildCategory,
+                permissionOverwrites: [
+                    {
+                        id: interaction.guild.id,
+                        deny: [PermissionsBitField.Flags.ViewChannel]
+                    },
+                    {
+                        id: user.id,
+                        allow: [PermissionsBitField.Flags.ViewChannel]
+                    },
+                    {
+                        id: interaction.guild.roles.everyone,
+                        deny: [PermissionsBitField.Flags.ViewChannel]
+                    }
+                ]
             });
 
-            await interaction.guild.channels.create({
-                name: '📌・informações',
-                type: ChannelType.GuildText,
-                parent: categoria.id
-            });
+            const botaoDelete = new ButtonBuilder()
+                .setCustomId('deletar_categoria')
+                .setLabel('🗑️ Deletar Minha Categoria')
+                .setStyle(ButtonStyle.Danger);
 
-            await interaction.guild.channels.create({
-                name: '💬・chat',
-                type: ChannelType.GuildText,
-                parent: categoria.id
-            });
+            const rowDelete = new ActionRowBuilder().addComponents(botaoDelete);
 
             await interaction.editReply({
-                content: "✅ Pasta criada com sucesso!"
+                content: "✅ Sua categoria foi criada!\nUse o botão abaixo para deletar.",
+                components: [rowDelete]
             });
+        }
 
-        } catch (error) {
-            console.error(error);
-            await interaction.editReply({
-                content: "❌ Ocorreu um erro ao criar a pasta."
+        // 🔥 Deletar categoria
+        if (interaction.customId === 'deletar_categoria') {
+
+            const categoria = interaction.guild.channels.cache.find(
+                c => c.type === ChannelType.GuildCategory && c.name === user.username
+            );
+
+            if (!categoria) {
+                return interaction.reply({
+                    content: "❌ Categoria não encontrada.",
+                    ephemeral: true
+                });
+            }
+
+            await categoria.delete();
+
+            await interaction.reply({
+                content: "🗑️ Sua categoria foi deletada.",
+                ephemeral: true
             });
         }
     }
 });
-
 
 client.login(TOKEN);
