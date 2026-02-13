@@ -21,18 +21,17 @@ const client = new Client({
 });
 
 client.once(Events.ClientReady, async () => {
-
     console.log(`Bot online como ${client.user.tag}`);
 
     const commands = [
         new SlashCommandBuilder()
             .setName('painel')
-            .setDescription('Envia o painel para criar sala privada'),
+            .setDescription('Envia o painel para criar sua pasta privada'),
 
         new SlashCommandBuilder()
             .setName('deletar')
-            .setDescription('Deleta sua sala privada')
-    ].map(command => command.toJSON());
+            .setDescription('Deleta sua pasta privada')
+    ].map(cmd => cmd.toJSON());
 
     const rest = new REST({ version: '10' }).setToken(TOKEN);
 
@@ -46,36 +45,41 @@ client.once(Events.ClientReady, async () => {
 
 client.on(Events.InteractionCreate, async interaction => {
 
+    // 🔹 COMANDOS
     if (interaction.isChatInputCommand()) {
 
+        // PAINEL
         if (interaction.commandName === 'painel') {
 
             const botao = new ButtonBuilder()
                 .setCustomId('criar_sala')
-                .setLabel('⚙️ Criar Minha Sala')
+                .setLabel('⚙️ Criar Minha Pasta')
                 .setStyle(ButtonStyle.Primary);
 
             const row = new ActionRowBuilder().addComponents(botao);
 
             await interaction.reply({
-                content: "Clique no botão para criar sua sala privada:",
+                content: "Clique no botão abaixo para criar sua pasta privada:",
                 components: [row]
             });
         }
 
+        // DELETAR
         if (interaction.commandName === 'deletar') {
 
-            const nomeServidor = interaction.member.displayName
-                .toLowerCase()
-                .replace(/[^a-z0-9]/gi, "-");
+            const userId = interaction.user.id;
+            const guild = interaction.guild;
 
-            const canal = interaction.guild.channels.cache.find(
-                c => c.parentId === CATEGORIA_ID && c.name === `📂-${nomeServidor}`
-            );
+            const canal = guild.channels.cache.find(channel => {
+                if (channel.parentId !== CATEGORIA_ID) return false;
+
+                const perm = channel.permissionOverwrites.cache.get(userId);
+                return perm && perm.allow.has(PermissionsBitField.Flags.ViewChannel);
+            });
 
             if (!canal) {
                 return interaction.reply({
-                    content: "❌ Você não possui sala para deletar.",
+                    content: "❌ Você não possui pasta para deletar.",
                     ephemeral: true
                 });
             }
@@ -83,45 +87,54 @@ client.on(Events.InteractionCreate, async interaction => {
             await canal.delete();
 
             await interaction.reply({
-                content: "🗑️ Sua sala foi deletada!",
+                content: "🗑️ Sua pasta foi deletada com sucesso!",
                 ephemeral: true
             });
         }
     }
 
+    // 🔹 BOTÃO
     if (interaction.isButton()) {
 
         if (interaction.customId === 'criar_sala') {
 
             await interaction.deferReply({ ephemeral: true });
 
+            const userId = interaction.user.id;
+            const guild = interaction.guild;
+
+            // 🔒 VERIFICA SE JÁ EXISTE
+            const canalExistente = guild.channels.cache.find(channel => {
+                if (channel.parentId !== CATEGORIA_ID) return false;
+
+                const perm = channel.permissionOverwrites.cache.get(userId);
+                return perm && perm.allow.has(PermissionsBitField.Flags.ViewChannel);
+            });
+
+            if (canalExistente) {
+                return interaction.editReply({
+                    content: "❌ Você já possui uma pasta criada. Não é possível criar outra."
+                });
+            }
+
+            // 🔥 Nome baseado no apelido do servidor
             const nomeServidor = interaction.member.displayName
                 .toLowerCase()
                 .replace(/[^a-z0-9]/gi, "-");
 
             const nomeCanal = `📂-${nomeServidor}`;
 
-            const canalExistente = interaction.guild.channels.cache.find(
-                c => c.parentId === CATEGORIA_ID && c.name === nomeCanal
-            );
-
-            if (canalExistente) {
-                return interaction.editReply({
-                    content: "❌ Você já possui uma sala criada."
-                });
-            }
-
-            await interaction.guild.channels.create({
+            await guild.channels.create({
                 name: nomeCanal,
                 type: ChannelType.GuildText,
                 parent: CATEGORIA_ID,
                 permissionOverwrites: [
                     {
-                        id: interaction.guild.id,
+                        id: guild.id,
                         deny: [PermissionsBitField.Flags.ViewChannel]
                     },
                     {
-                        id: interaction.user.id,
+                        id: userId,
                         allow: [
                             PermissionsBitField.Flags.ViewChannel,
                             PermissionsBitField.Flags.SendMessages,
@@ -132,7 +145,7 @@ client.on(Events.InteractionCreate, async interaction => {
             });
 
             await interaction.editReply({
-                content: "✅ Sua sala privada foi criada com seu nome do servidor!"
+                content: "✅ Sua pasta privada foi criada com sucesso!"
             });
         }
     }
