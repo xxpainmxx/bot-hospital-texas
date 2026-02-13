@@ -14,6 +14,7 @@ const {
 
 const TOKEN = process.env.TOKEN;
 const GUILD_ID = '1347665144808865953';
+const CATEGORIA_ID = '1347665146553696318';
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds]
@@ -28,9 +29,12 @@ client.once(Events.ClientReady, async () => {
     const commands = [
         new SlashCommandBuilder()
             .setName('painel')
-            .setDescription('Envia o painel para criar categoria privada')
-            .toJSON()
-    ];
+            .setDescription('Envia o painel para criar sala privada'),
+
+        new SlashCommandBuilder()
+            .setName('deletar')
+            .setDescription('Deleta sua sala privada')
+    ].map(command => command.toJSON());
 
     const rest = new REST({ version: '10' }).setToken(TOKEN);
 
@@ -39,56 +43,81 @@ client.once(Events.ClientReady, async () => {
         { body: commands }
     );
 
-    console.log('Comando registrado!');
+    console.log('Comandos registrados!');
 });
 
 
 // 🔥 Interações
 client.on(Events.InteractionCreate, async interaction => {
 
-    // 🔹 Slash command
+    // ===== SLASH COMMANDS =====
     if (interaction.isChatInputCommand()) {
 
+        // 🔹 Enviar botão
         if (interaction.commandName === 'painel') {
 
             const botao = new ButtonBuilder()
-                .setCustomId('criar_categoria')
-                .setLabel('⚙️ Criar Minha Categoria')
+                .setCustomId('criar_sala')
+                .setLabel('⚙️ Criar Minha Sala')
                 .setStyle(ButtonStyle.Primary);
 
             const row = new ActionRowBuilder().addComponents(botao);
 
             await interaction.reply({
-                content: "Clique no botão para criar sua categoria privada:",
+                content: "Clique no botão para criar sua sala privada:",
                 components: [row]
             });
         }
-    }
 
-    // 🔹 Clique no botão
-    if (interaction.isButton()) {
+        // 🔹 Deletar sala
+        if (interaction.commandName === 'deletar') {
 
-        const user = interaction.user;
+            const user = interaction.user;
 
-        // 🔍 Verificar se já existe categoria
-        const categoriaExistente = interaction.guild.channels.cache.find(
-            c => c.type === ChannelType.GuildCategory && c.name === user.username
-        );
+            const canal = interaction.guild.channels.cache.find(
+                c => c.parentId === CATEGORIA_ID && c.name === `📂-${user.username}`
+            );
 
-        if (interaction.customId === 'criar_categoria') {
-
-            if (categoriaExistente) {
+            if (!canal) {
                 return interaction.reply({
-                    content: "❌ Você já possui uma categoria criada.",
+                    content: "❌ Você não possui sala para deletar.",
                     ephemeral: true
                 });
             }
 
+            await canal.delete();
+
+            await interaction.reply({
+                content: "🗑️ Sua sala foi deletada com sucesso!",
+                ephemeral: true
+            });
+        }
+    }
+
+
+    // ===== BOTÃO =====
+    if (interaction.isButton()) {
+
+        if (interaction.customId === 'criar_sala') {
+
             await interaction.deferReply({ ephemeral: true });
 
-            const categoria = await interaction.guild.channels.create({
-                name: user.username,
-                type: ChannelType.GuildCategory,
+            const user = interaction.user;
+
+            const canalExistente = interaction.guild.channels.cache.find(
+                c => c.parentId === CATEGORIA_ID && c.name === `📂-${user.username}`
+            );
+
+            if (canalExistente) {
+                return interaction.editReply({
+                    content: "❌ Você já possui uma sala criada."
+                });
+            }
+
+            await interaction.guild.channels.create({
+                name: `📂-${user.username}`,
+                type: ChannelType.GuildText,
+                parent: CATEGORIA_ID,
                 permissionOverwrites: [
                     {
                         id: interaction.guild.id,
@@ -96,47 +125,17 @@ client.on(Events.InteractionCreate, async interaction => {
                     },
                     {
                         id: user.id,
-                        allow: [PermissionsBitField.Flags.ViewChannel]
-                    },
-                    {
-                        id: interaction.guild.roles.everyone,
-                        deny: [PermissionsBitField.Flags.ViewChannel]
+                        allow: [
+                            PermissionsBitField.Flags.ViewChannel,
+                            PermissionsBitField.Flags.SendMessages,
+                            PermissionsBitField.Flags.ReadMessageHistory
+                        ]
                     }
                 ]
             });
 
-            const botaoDelete = new ButtonBuilder()
-                .setCustomId('deletar_categoria')
-                .setLabel('🗑️ Deletar Minha Categoria')
-                .setStyle(ButtonStyle.Danger);
-
-            const rowDelete = new ActionRowBuilder().addComponents(botaoDelete);
-
             await interaction.editReply({
-                content: "✅ Sua categoria foi criada!\nUse o botão abaixo para deletar.",
-                components: [rowDelete]
-            });
-        }
-
-        // 🔥 Deletar categoria
-        if (interaction.customId === 'deletar_categoria') {
-
-            const categoria = interaction.guild.channels.cache.find(
-                c => c.type === ChannelType.GuildCategory && c.name === user.username
-            );
-
-            if (!categoria) {
-                return interaction.reply({
-                    content: "❌ Categoria não encontrada.",
-                    ephemeral: true
-                });
-            }
-
-            await categoria.delete();
-
-            await interaction.reply({
-                content: "🗑️ Sua categoria foi deletada.",
-                ephemeral: true
+                content: "✅ Sua sala privada foi criada!"
             });
         }
     }
