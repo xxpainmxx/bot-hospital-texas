@@ -60,14 +60,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
             const row = new ActionRowBuilder().addComponents(botao);
 
-            // Responde privado para quem executou
             await interaction.reply({
-                content: "✅ Painel enviado no canal.",
-                ephemeral: true
-            });
-
-            // Envia mensagem normal no canal
-            await interaction.channel.send({
                 content: "Clique no botão abaixo para criar sua pasta privada, Para envios dos atendimentos realizados no dia !",
                 components: [row]
             });
@@ -114,6 +107,7 @@ client.on(Events.InteractionCreate, async interaction => {
             const userId = interaction.user.id;
             const guild = interaction.guild;
 
+            // 🔒 Verifica se já existe pasta para o usuário
             const canalExistente = guild.channels.cache.find(channel => {
                 if (channel.parentId !== CATEGORIA_ID) return false;
 
@@ -127,6 +121,7 @@ client.on(Events.InteractionCreate, async interaction => {
                 });
             }
 
+            // 🔥 Nome baseado no nickname do servidor
             const nomeServidor = interaction.member.displayName
                 .toLowerCase()
                 .replace(/[^a-z0-9]/gi, "-");
@@ -157,11 +152,15 @@ client.on(Events.InteractionCreate, async interaction => {
                 content: "✅ Sua pasta privada foi criada com sucesso!"
             });
 
-            // 🔥 AGORA ISSO FUNCIONA
-            await interaction.message.edit({
-                content: "✅ Pasta já criada.",
-                components: []
-            });
+            // 🔥 Remove o botão do painel (sem deletar mensagem)
+            try {
+                await interaction.message.edit({
+                    content: "✅ Pasta já criada.",
+                    components: []
+                });
+            } catch (err) {
+                console.log("Não foi possível editar a mensagem do painel.");
+            }
         }
     }
 });
