@@ -61,7 +61,7 @@ client.on(Events.InteractionCreate, async interaction => {
             const row = new ActionRowBuilder().addComponents(botao);
 
             await interaction.reply({
-                content: "Clique no botão abaixo para criar sua pasta privada, Para envios dos atendimentos realizados no dia !",
+                content: "Clique no botão abaixo para criar sua pasta privada para envio dos atendimentos realizados no dia.",
                 components: [row]
             });
         }
@@ -107,7 +107,7 @@ client.on(Events.InteractionCreate, async interaction => {
             const userId = interaction.user.id;
             const guild = interaction.guild;
 
-            // 🔒 Verifica se já existe pasta para o usuário
+            // 🔒 Verifica se já existe pasta
             const canalExistente = guild.channels.cache.find(channel => {
                 if (channel.parentId !== CATEGORIA_ID) return false;
 
@@ -128,7 +128,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
             const nomeCanal = `📂-${nomeServidor}`;
 
-            await guild.channels.create({
+            const novoCanal = await guild.channels.create({
                 name: nomeCanal,
                 type: ChannelType.GuildText,
                 parent: CATEGORIA_ID,
@@ -148,18 +148,27 @@ client.on(Events.InteractionCreate, async interaction => {
                 ]
             });
 
-            await interaction.editReply({
-                content: "✅ Sua pasta privada foi criada com sucesso!"
+            // ✅ Mensagem automática dentro da pasta
+            await novoCanal.send({
+                content: `👋 Olá ${interaction.user}!
+
+Sua pasta foi criada com sucesso.
+
+📌 Apenas você pode visualizar este canal.
+Use este espaço para enviar seus atendimentos realizados no dia.
+
+Após finalizar, utilize o comando /deletar para remover sua pasta.`
             });
 
-            // 🔥 Remove o botão do painel (sem deletar mensagem)
+            await interaction.editReply({
+                content: `✅ Sua pasta foi criada com sucesso: ${novoCanal}`
+            });
+
+            // 🗑️ Apaga a mensagem do painel completamente
             try {
-                await interaction.message.edit({
-                    content: "✅ Pasta já criada.",
-                    components: []
-                });
+                await interaction.message.delete();
             } catch (err) {
-                console.log("Não foi possível editar a mensagem do painel.");
+                console.log("Não foi possível deletar a mensagem do painel.");
             }
         }
     }
