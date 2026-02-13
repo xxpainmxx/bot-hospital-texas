@@ -45,10 +45,12 @@ client.once(Events.ClientReady, async () => {
 
 client.on(Events.InteractionCreate, async interaction => {
 
-    // 🔹 COMANDOS
+    // ========================
+    // SLASH COMMANDS
+    // ========================
+
     if (interaction.isChatInputCommand()) {
 
-        // PAINEL
         if (interaction.commandName === 'painel') {
 
             const botao = new ButtonBuilder()
@@ -59,12 +61,11 @@ client.on(Events.InteractionCreate, async interaction => {
             const row = new ActionRowBuilder().addComponents(botao);
 
             await interaction.reply({
-                content: "Clique no botão abaixo para criar sua pasta privada, Para envios dos atendimentos realizados no dia !:",
+                content: "Clique no botão abaixo para criar sua pasta privada:",
                 components: [row]
             });
         }
 
-        // DELETAR
         if (interaction.commandName === 'deletar') {
 
             const userId = interaction.user.id;
@@ -93,7 +94,10 @@ client.on(Events.InteractionCreate, async interaction => {
         }
     }
 
-    // 🔹 BOTÃO
+    // ========================
+    // BOTÃO
+    // ========================
+
     if (interaction.isButton()) {
 
         if (interaction.customId === 'criar_sala') {
@@ -103,7 +107,7 @@ client.on(Events.InteractionCreate, async interaction => {
             const userId = interaction.user.id;
             const guild = interaction.guild;
 
-            // 🔒 VERIFICA SE JÁ EXISTE
+            // 🔒 Verifica se já existe pasta para o usuário
             const canalExistente = guild.channels.cache.find(channel => {
                 if (channel.parentId !== CATEGORIA_ID) return false;
 
@@ -113,11 +117,11 @@ client.on(Events.InteractionCreate, async interaction => {
 
             if (canalExistente) {
                 return interaction.editReply({
-                    content: "❌ Você já possui uma pasta criada. Não é possível criar outra."
+                    content: "❌ Você já possui uma pasta criada."
                 });
             }
 
-            // 🔥 Nome baseado no apelido do servidor
+            // 🔥 Nome usando nickname do servidor
             const nomeServidor = interaction.member.displayName
                 .toLowerCase()
                 .replace(/[^a-z0-9]/gi, "-");
@@ -147,6 +151,13 @@ client.on(Events.InteractionCreate, async interaction => {
             await interaction.editReply({
                 content: "✅ Sua pasta privada foi criada com sucesso!"
             });
+
+            // 🗑️ Apaga a mensagem do painel
+            try {
+                await interaction.message.delete();
+            } catch (err) {
+                console.log("Não foi possível apagar a mensagem do painel.");
+            }
         }
     }
 });
