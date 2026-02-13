@@ -61,7 +61,7 @@ client.on(Events.InteractionCreate, async interaction => {
             const row = new ActionRowBuilder().addComponents(botao);
 
             await interaction.reply({
-                content: "Clique no botão abaixo para criar sua pasta privada:",
+                content: "Clique no botão abaixo para criar sua pasta privada, Para envios dos atendimentos realizados no dia !",
                 components: [row]
             });
         }
@@ -163,3 +163,4 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 client.login(TOKEN);
+
