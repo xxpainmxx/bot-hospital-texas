@@ -30,7 +30,7 @@ client.once(Events.ClientReady, async () => {
     const rest = new REST({ version: '10' }).setToken(TOKEN);
 
     await rest.put(
-        Routes.applicationGuildCommands(client.user.id, 'COLOQUE_SEU_GUILD_ID_AQUI'),
+        Routes.applicationGuildCommands(client.user.id, '1347665144808865953'),
         { body: commands }
     );
 
@@ -81,3 +81,4 @@ client.on(Events.InteractionCreate, async interaction => {
 
 
 client.login(TOKEN);
+
