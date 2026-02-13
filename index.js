@@ -20,8 +20,6 @@ const client = new Client({
     intents: [GatewayIntentBits.Guilds]
 });
 
-
-// 🔥 Quando o bot liga
 client.once(Events.ClientReady, async () => {
 
     console.log(`Bot online como ${client.user.tag}`);
@@ -46,14 +44,10 @@ client.once(Events.ClientReady, async () => {
     console.log('Comandos registrados!');
 });
 
-
-// 🔥 Interações
 client.on(Events.InteractionCreate, async interaction => {
 
-    // ===== SLASH COMMANDS =====
     if (interaction.isChatInputCommand()) {
 
-        // 🔹 Enviar botão
         if (interaction.commandName === 'painel') {
 
             const botao = new ButtonBuilder()
@@ -69,13 +63,14 @@ client.on(Events.InteractionCreate, async interaction => {
             });
         }
 
-        // 🔹 Deletar sala
         if (interaction.commandName === 'deletar') {
 
-            const user = interaction.user;
+            const nomeServidor = interaction.member.displayName
+                .toLowerCase()
+                .replace(/[^a-z0-9]/gi, "-");
 
             const canal = interaction.guild.channels.cache.find(
-                c => c.parentId === CATEGORIA_ID && c.name === `📂-${user.username}`
+                c => c.parentId === CATEGORIA_ID && c.name === `📂-${nomeServidor}`
             );
 
             if (!canal) {
@@ -88,24 +83,26 @@ client.on(Events.InteractionCreate, async interaction => {
             await canal.delete();
 
             await interaction.reply({
-                content: "🗑️ Sua sala foi deletada com sucesso!",
+                content: "🗑️ Sua sala foi deletada!",
                 ephemeral: true
             });
         }
     }
 
-
-    // ===== BOTÃO =====
     if (interaction.isButton()) {
 
         if (interaction.customId === 'criar_sala') {
 
             await interaction.deferReply({ ephemeral: true });
 
-            const user = interaction.user;
+            const nomeServidor = interaction.member.displayName
+                .toLowerCase()
+                .replace(/[^a-z0-9]/gi, "-");
+
+            const nomeCanal = `📂-${nomeServidor}`;
 
             const canalExistente = interaction.guild.channels.cache.find(
-                c => c.parentId === CATEGORIA_ID && c.name === `📂-${user.username}`
+                c => c.parentId === CATEGORIA_ID && c.name === nomeCanal
             );
 
             if (canalExistente) {
@@ -115,7 +112,7 @@ client.on(Events.InteractionCreate, async interaction => {
             }
 
             await interaction.guild.channels.create({
-                name: `📂-${user.username}`,
+                name: nomeCanal,
                 type: ChannelType.GuildText,
                 parent: CATEGORIA_ID,
                 permissionOverwrites: [
@@ -124,7 +121,7 @@ client.on(Events.InteractionCreate, async interaction => {
                         deny: [PermissionsBitField.Flags.ViewChannel]
                     },
                     {
-                        id: user.id,
+                        id: interaction.user.id,
                         allow: [
                             PermissionsBitField.Flags.ViewChannel,
                             PermissionsBitField.Flags.SendMessages,
@@ -135,7 +132,7 @@ client.on(Events.InteractionCreate, async interaction => {
             });
 
             await interaction.editReply({
-                content: "✅ Sua sala privada foi criada!"
+                content: "✅ Sua sala privada foi criada com seu nome do servidor!"
             });
         }
     }
