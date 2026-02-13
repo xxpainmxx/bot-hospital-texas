@@ -28,7 +28,7 @@ client.once(Events.ClientReady, async () => {
     const rest = new REST({ version: '10' }).setToken(TOKEN);
 
     await rest.put(
-        Routes.applicationGuildCommands(client.user.id, '1471849314979676282'),
+        Routes.applicationGuildCommands(client.user.id, '1347665144808865953'),
         { body: commands }
     );
 
@@ -101,5 +101,6 @@ if (interaction.isModalSubmit()) {
 
 
 client.login(TOKEN);
+
 
 
