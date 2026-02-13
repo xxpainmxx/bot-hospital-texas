@@ -1,26 +1,38 @@
 const { 
     Client, 
     GatewayIntentBits, 
-    Partials, 
     Events, 
-    ModalBuilder, 
-    TextInputBuilder, 
-    TextInputStyle, 
-    ActionRowBuilder, 
-    SlashCommandBuilder 
+    REST, 
+    Routes, 
+    SlashCommandBuilder,
+    ChannelType
 } = require('discord.js');
 
-const TOKEN = process.env.TOKEN;
+const TOKEN = process.env.TOKEN; // No Railway precisa ser assim
 
 const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds
-    ],
-    partials: [Partials.Channel]
+    intents: [GatewayIntentBits.Guilds]
 });
 
-client.once(Events.ClientReady, () => {
+client.once(Events.ClientReady, async () => {
+
     console.log(`Bot online como ${client.user.tag}`);
+
+    const commands = [
+        new SlashCommandBuilder()
+            .setName('criarpasta')
+            .setDescription('Cria uma pasta com canais automáticos')
+            .toJSON()
+    ];
+
+    const rest = new REST({ version: '10' }).setToken(TOKEN);
+
+    await rest.put(
+        Routes.applicationGuildCommands(client.user.id, '1471849314979676282'),
+        { body: commands }
+    );
+
+    console.log('Comando registrado automaticamente!');
 });
 
 client.on(Events.InteractionCreate, async interaction => {
@@ -89,4 +101,5 @@ if (interaction.isModalSubmit()) {
 
 
 client.login(TOKEN);
+
 
