@@ -47,20 +47,40 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 
     // Quando enviar o nome no modal
-   const { ChannelType } = require('discord.js');
+ const { ChannelType } = require('discord.js');
 
 if (interaction.isModalSubmit()) {
     if (interaction.customId === 'modal_pasta') {
 
         const nome = interaction.fields.getTextInputValue('nome_pasta');
 
-        await interaction.guild.channels.create({
+        // Criar categoria
+        const categoria = await interaction.guild.channels.create({
             name: nome,
             type: ChannelType.GuildCategory
         });
 
+        // Criar canais dentro da categoria
+        await interaction.guild.channels.create({
+            name: '📌・informações',
+            type: ChannelType.GuildText,
+            parent: categoria.id
+        });
+
+        await interaction.guild.channels.create({
+            name: '💬・chat',
+            type: ChannelType.GuildText,
+            parent: categoria.id
+        });
+
+        await interaction.guild.channels.create({
+            name: '🎙️・voz',
+            type: ChannelType.GuildVoice,
+            parent: categoria.id
+        });
+
         await interaction.reply({
-            content: `✅ Pasta ${nome} criada com sucesso!`,
+            content: `✅ Pasta **${nome}** criada com canais automáticos!`,
             ephemeral: true
         });
     }
@@ -69,3 +89,4 @@ if (interaction.isModalSubmit()) {
 
 
 client.login(TOKEN);
+
