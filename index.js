@@ -1,15 +1,11 @@
 const { 
     Client, 
     GatewayIntentBits, 
-    Events,
-    REST,
-    Routes,
+    Events, 
+    REST, 
+    Routes, 
     SlashCommandBuilder,
-    ChannelType,
-    ModalBuilder,
-    TextInputBuilder,
-    TextInputStyle,
-    ActionRowBuilder
+    ChannelType
 } = require('discord.js');
 
 const TOKEN = process.env.TOKEN;
@@ -45,39 +41,16 @@ client.once(Events.ClientReady, async () => {
 // 🔹 AQUI FICA O interactionCreate 👇
 client.on(Events.InteractionCreate, async interaction => {
 
-    // Quando usar /criarpasta
-    if (interaction.isChatInputCommand()) {
+    if (!interaction.isChatInputCommand()) return;
 
-        if (interaction.commandName === 'criarpasta') {
+    if (interaction.commandName === 'criarpasta') {
 
-            const modal = new ModalBuilder()
-                .setCustomId('modal_pasta')
-                .setTitle('Criar Nova Pasta');
+        await interaction.deferReply({ ephemeral: true });
 
-            const nomeInput = new TextInputBuilder()
-                .setCustomId('nome_pasta')
-                .setLabel('Qual será o nome da pasta?')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true);
-
-            const row = new ActionRowBuilder().addComponents(nomeInput);
-            modal.addComponents(row);
-
-            await interaction.showModal(modal);
-        }
-    }
-
-    // Quando enviar o nome
-    if (interaction.isModalSubmit()) {
-
-        if (interaction.customId === 'modal_pasta') {
-
-            await interaction.deferReply({ ephemeral: true });
-
-            const nome = interaction.fields.getTextInputValue('nome_pasta');
+        try {
 
             const categoria = await interaction.guild.channels.create({
-                name: nome,
+                name: "Nova Pasta",
                 type: ChannelType.GuildCategory
             });
 
@@ -94,14 +67,17 @@ client.on(Events.InteractionCreate, async interaction => {
             });
 
             await interaction.editReply({
-                content: `✅ Pasta **${nome}** criada com sucesso!`
+                content: "✅ Pasta criada com sucesso!"
+            });
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply({
+                content: "❌ Ocorreu um erro ao criar a pasta."
             });
         }
     }
 });
-});
 
 
 client.login(TOKEN);
-
-
