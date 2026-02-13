@@ -45,9 +45,9 @@ client.once(Events.ClientReady, async () => {
 
 client.on(Events.InteractionCreate, async interaction => {
 
-    // ========================
+    // ======================
     // SLASH COMMANDS
-    // ========================
+    // ======================
 
     if (interaction.isChatInputCommand()) {
 
@@ -61,7 +61,7 @@ client.on(Events.InteractionCreate, async interaction => {
             const row = new ActionRowBuilder().addComponents(botao);
 
             await interaction.reply({
-                content: "Clique no botão abaixo para criar sua pasta privada, Para envios dos atendimentos realizados no dia !",
+                content: "Clique no botão abaixo para criar sua pasta privada:",
                 components: [row]
             });
         }
@@ -94,9 +94,9 @@ client.on(Events.InteractionCreate, async interaction => {
         }
     }
 
-    // ========================
+    // ======================
     // BOTÃO
-    // ========================
+    // ======================
 
     if (interaction.isButton()) {
 
@@ -121,7 +121,7 @@ client.on(Events.InteractionCreate, async interaction => {
                 });
             }
 
-            // 🔥 Nome usando nickname do servidor
+            // 🔥 Nome baseado no nickname do servidor
             const nomeServidor = interaction.member.displayName
                 .toLowerCase()
                 .replace(/[^a-z0-9]/gi, "-");
@@ -152,15 +152,17 @@ client.on(Events.InteractionCreate, async interaction => {
                 content: "✅ Sua pasta privada foi criada com sucesso!"
             });
 
-            // 🗑️ Apaga a mensagem do painel
+            // 🔥 Remove o botão do painel (sem deletar mensagem)
             try {
-                await interaction.message.delete();
+                await interaction.message.edit({
+                    content: "✅ Pasta já criada.",
+                    components: []
+                });
             } catch (err) {
-                console.log("Não foi possível apagar a mensagem do painel.");
+                console.log("Não foi possível editar a mensagem do painel.");
             }
         }
     }
 });
 
 client.login(TOKEN);
-
