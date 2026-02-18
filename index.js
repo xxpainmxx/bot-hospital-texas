@@ -1,5 +1,3 @@
-
-
 const {
     Client,
     GatewayIntentBits,
@@ -19,7 +17,7 @@ const {
 } = require('discord.js');
 
 // ===============================
-// 🔐 VALIDAÇÃO DE VARIÁVEIS
+// 🔐 VARIÁVEIS DO RAILWAY
 // ===============================
 const {
     TOKEN,
@@ -33,8 +31,9 @@ const {
     CATEGORIA_ID
 } = process.env;
 
+// Validação básica
 if (!TOKEN || !CLIENT_ID || !GUILD_ID) {
-    console.error("❌ TOKEN, CLIENT_ID ou GUILD_ID não definidos no .env");
+    console.error("❌ TOKEN, CLIENT_ID ou GUILD_ID não definidos nas Variables do Railway.");
     process.exit(1);
 }
 
@@ -92,7 +91,9 @@ client.on(Events.InteractionCreate, async interaction => {
         }
 
         const canal = interaction.guild.channels.cache.get(CANAL_PAINEL_ID);
-        if (!canal) return interaction.reply({ content: "❌ Canal do painel não encontrado.", ephemeral: true });
+        if (!canal) {
+            return interaction.reply({ content: '❌ Canal do painel não encontrado.', ephemeral: true });
+        }
 
         const embed = new EmbedBuilder()
             .setTitle('📋 Solicitação de Aprovação')
@@ -106,13 +107,17 @@ client.on(Events.InteractionCreate, async interaction => {
 
         const row = new ActionRowBuilder().addComponents(button);
 
-        const msg = await canal.send({ embeds: [embed], components: [row] });
+        const msg = await canal.send({
+            embeds: [embed],
+            components: [row]
+        });
+
         await msg.pin();
 
         return interaction.reply({ content: '✅ Painel enviado.', ephemeral: true });
     }
 
-    // ===== BOTÃO ABRIR MODAL =====
+    // ===== ABRIR FORMULÁRIO =====
     if (interaction.isButton() && interaction.customId === 'abrir_formulario') {
 
         const modal = new ModalBuilder()
@@ -156,7 +161,9 @@ client.on(Events.InteractionCreate, async interaction => {
 
         const userId = interaction.customId.split('_')[1];
         const member = await interaction.guild.members.fetch(userId).catch(() => null);
-        if (!member) return interaction.reply({ content: "❌ Usuário não encontrado.", ephemeral: true });
+        if (!member) {
+            return interaction.reply({ content: '❌ Usuário não encontrado.', ephemeral: true });
+        }
 
         // ===== APROVAR =====
         if (interaction.customId.startsWith('aprovar_')) {
@@ -167,8 +174,7 @@ client.on(Events.InteractionCreate, async interaction => {
                 console.error("Erro ao adicionar cargos:", err);
             }
 
-            const nomeServidor = member.displayName.toLowerCase().replace(/[^a-z0-9]/gi, "-");
-            const nomeCanal = `📂-${nomeServidor}`;
+            const nomeCanal = `📂-${member.user.username.toLowerCase().replace(/[^a-z0-9]/gi, '-')}`;
 
             const novoCanal = await interaction.guild.channels.create({
                 name: nomeCanal,
@@ -190,7 +196,7 @@ client.on(Events.InteractionCreate, async interaction => {
                 ]
             });
 
-            await novoCanal.send(`👋 Olá ${member}! Sua pasta foi criada.`);
+            await novoCanal.send(`👋 Olá ${member}, sua pasta foi criada.`);
 
             await interaction.update({
                 content: `✅ ${member} aprovado e pasta criada.`,
@@ -213,7 +219,9 @@ client.on(Events.InteractionCreate, async interaction => {
         const periodo = interaction.fields.getTextInputValue('periodo');
 
         const canalStaff = interaction.guild.channels.cache.get(CANAL_STAFF_ID);
-        if (!canalStaff) return interaction.reply({ content: "❌ Canal staff não encontrado.", ephemeral: true });
+        if (!canalStaff) {
+            return interaction.reply({ content: '❌ Canal da staff não encontrado.', ephemeral: true });
+        }
 
         const embed = new EmbedBuilder()
             .setTitle('📩 Nova Solicitação')
@@ -237,7 +245,10 @@ client.on(Events.InteractionCreate, async interaction => {
 
         const row = new ActionRowBuilder().addComponents(aprovarBtn, reprovarBtn);
 
-        await canalStaff.send({ embeds: [embed], components: [row] });
+        await canalStaff.send({
+            embeds: [embed],
+            components: [row]
+        });
 
         await interaction.reply({
             content: '📨 Solicitação enviada para staff.',
@@ -246,5 +257,7 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 });
 
+// ===============================
+// 🚀 LOGIN
+// ===============================
 client.login(TOKEN);
-
