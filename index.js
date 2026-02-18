@@ -188,14 +188,12 @@ client.on(Events.InteractionCreate, async interaction => {
             const pombo = interaction.fields.getTextInputValue('pombo');
             const periodo = interaction.fields.getTextInputValue('periodo');
 
-            // 🔥 FORMATAR NOME
             const nomeFormatado = nome
                 .toLowerCase()
                 .replace(/[^a-z0-9]/g, '-');
 
             const nomeCanal = `${nomeFormatado}-${pombo}`;
 
-            // Salvar temporariamente
             solicitacoes.set(interaction.user.id, nomeCanal);
 
             const canalStaff = interaction.guild.channels.cache.get(CANAL_STAFF_ID);
@@ -258,6 +256,15 @@ client.on(Events.InteractionCreate, async interaction => {
 
                 await member.roles.add([ROLE_1_ID, ROLE_2_ID]).catch(() => {});
 
+                // 📩 DM APROVAÇÃO
+                try {
+                    await member.send(
+                        `✅ Olá ${member.user.username}, sua solicitação foi APROVADA!\n\nSua pasta foi criada no servidor. 🎉`
+                    );
+                } catch (err) {
+                    console.log("DM fechada.");
+                }
+
                 const novoCanal = await interaction.guild.channels.create({
                     name: nomeCanal,
                     type: ChannelType.GuildText,
@@ -288,6 +295,15 @@ client.on(Events.InteractionCreate, async interaction => {
                 });
 
             } else {
+
+                // 📩 DM REPROVAÇÃO
+                try {
+                    await member.send(
+                        `❌ Olá ${member.user.username}, infelizmente sua solicitação foi REPROVADA.\n\nPara mais informações, entre em contato com a staff.`
+                    );
+                } catch (err) {
+                    console.log("DM fechada.");
+                }
 
                 solicitacoes.delete(userId);
 
