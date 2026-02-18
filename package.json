@@ -8,9 +8,10 @@
     "start": "node index.js" 
   }, 
   "engines": { 
-    "node": ">=18.0.0" 
+    "node": ">=v18.20.8" 
   }, 
   "dependências": { 
     "discord.js": "^14.14.1" 
   } 
 }
+
