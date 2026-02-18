@@ -26,6 +26,7 @@ const client = new Client({
 });
 
 // ====== VARIÁVEIS RAILWAY ======
+const TOKEN = process.env.TOKEN;
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
 const ROLE_1_ID = process.env.ROLE_1_ID;
 const ROLE_2_ID = process.env.ROLE_2_ID;
@@ -246,3 +247,4 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 client.login(process.env.TOKEN);
+
