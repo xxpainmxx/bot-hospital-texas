@@ -274,7 +274,7 @@ client.on(Events.InteractionCreate, async interaction => {
                     ]
                 });
 
-                await novoCanal.send(`👋 Olá ${member}, sua pasta foi criada.`);
+                await novoCanal.send(`📁 Pasta do(a) Dr ${member}. criada com sucesso. Todos os registros, relatórios e documentos deverão ser organizados aqui conforme o protocolo interno.`);
 
                 solicitacoes.delete(userId);
 
@@ -306,3 +306,4 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 client.login(TOKEN);
+
