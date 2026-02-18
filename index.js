@@ -1,177 +1,248 @@
+require('dotenv').config();
+
 const {
     Client,
     GatewayIntentBits,
-    Events,
-    ChannelType,
-    PermissionsBitField,
+    ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
-    ActionRowBuilder,
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle,
     SlashCommandBuilder,
     REST,
-    Routes
+    Routes,
+    Events,
+    EmbedBuilder,
+    ChannelType,
+    PermissionsBitField
 } = require('discord.js');
 
-const TOKEN = process.env.TOKEN;
-const GUILD_ID = '1347665144808865953';
-const CATEGORIA_ID = '1347665146553696318';
-
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds]
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMembers
+    ]
 });
 
-client.once(Events.ClientReady, async () => {
-    console.log(`Bot online como ${client.user.tag}`);
+// ====== VARIÁVEIS RAILWAY ======
+const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
+const ROLE_1_ID = process.env.ROLE_1_ID;
+const ROLE_2_ID = process.env.ROLE_2_ID;
+const CANAL_PAINEL_ID = process.env.CANAL_PAINEL_ID;
+const CANAL_STAFF_ID = process.env.CANAL_STAFF_ID;
+const CATEGORIA_ID = process.env.CATEGORIA_ID;
+// ===============================
 
-    const commands = [
-        new SlashCommandBuilder()
-            .setName('painel')
-            .setDescription('Envia o painel para criar sua pasta privada'),
+// Registrar comando
+const commands = [
+    new SlashCommandBuilder()
+        .setName('enviar-painel')
+        .setDescription('Enviar painel de solicitação')
+        .toJSON()
+];
 
-        new SlashCommandBuilder()
-            .setName('deletar')
-            .setDescription('Deleta sua pasta privada')
-    ].map(cmd => cmd.toJSON());
+const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
-    const rest = new REST({ version: '10' }).setToken(TOKEN);
-
+(async () => {
     await rest.put(
-        Routes.applicationGuildCommands(client.user.id, GUILD_ID),
+        Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
         { body: commands }
     );
+})();
 
-    console.log('Comandos registrados!');
+client.once(Events.ClientReady, () => {
+    console.log(`✅ Bot online como ${client.user.tag}`);
 });
 
 client.on(Events.InteractionCreate, async interaction => {
 
-    // ======================
-    // SLASH COMMANDS
-    // ======================
-
+    // ===== ENVIAR PAINEL =====
     if (interaction.isChatInputCommand()) {
 
-        if (interaction.commandName === 'painel') {
-
-            const botao = new ButtonBuilder()
-                .setCustomId('criar_sala')
-                .setLabel('⚙️ Criar Minha Pasta')
-                .setStyle(ButtonStyle.Primary);
-
-            const row = new ActionRowBuilder().addComponents(botao);
-
-            await interaction.reply({
-                content: "Clique no botão abaixo para criar sua pasta privada para envio dos atendimentos realizados no dia.",
-                components: [row]
-            });
+        if (!interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
+            return interaction.reply({ content: '❌ Apenas staff.', ephemeral: true });
         }
 
-        if (interaction.commandName === 'deletar') {
+        const canal = interaction.guild.channels.cache.get(CANAL_PAINEL_ID);
 
-            const userId = interaction.user.id;
-            const guild = interaction.guild;
+        const embed = new EmbedBuilder()
+            .setTitle('📋 Solicitação de Aprovação')
+            .setDescription('Clique no botão abaixo para enviar sua solicitação.')
+            .setColor('Blue');
 
-            const canal = guild.channels.cache.find(channel => {
-                if (channel.parentId !== CATEGORIA_ID) return false;
+        const button = new ButtonBuilder()
+            .setCustomId('abrir_formulario')
+            .setLabel('Solicitar Aprovação')
+            .setStyle(ButtonStyle.Primary);
 
-                const perm = channel.permissionOverwrites.cache.get(userId);
-                return perm && perm.allow.has(PermissionsBitField.Flags.ViewChannel);
-            });
+        const row = new ActionRowBuilder().addComponents(button);
 
-            if (!canal) {
-                return interaction.reply({
-                    content: "❌ Você não possui pasta para deletar.",
-                    ephemeral: true
-                });
+        const msg = await canal.send({
+            embeds: [embed],
+            components: [row]
+        });
+
+        await msg.pin();
+
+        return interaction.reply({ content: '✅ Painel enviado.', ephemeral: true });
+    }
+
+    // ===== BOTÃO USUÁRIO =====
+    if (interaction.isButton()) {
+
+        if (interaction.customId === 'abrir_formulario') {
+
+            const modal = new ModalBuilder()
+                .setCustomId('modal_solicitacao')
+                .setTitle('Formulário de Solicitação');
+
+            const nome = new TextInputBuilder()
+                .setCustomId('nome')
+                .setLabel('Seu Nome')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true);
+
+            const pombo = new TextInputBuilder()
+                .setCustomId('pombo')
+                .setLabel('Pombo')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true);
+
+            const periodo = new TextInputBuilder()
+                .setCustomId('periodo')
+                .setLabel('Período de Trabalho')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true);
+
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(nome),
+                new ActionRowBuilder().addComponents(pombo),
+                new ActionRowBuilder().addComponents(periodo)
+            );
+
+            return interaction.showModal(modal);
+        }
+
+        // ===== STAFF APROVA / REPROVA =====
+        if (interaction.customId.startsWith('aprovar_') || interaction.customId.startsWith('reprovar_')) {
+
+            if (!interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
+                return interaction.reply({ content: '❌ Apenas staff.', ephemeral: true });
             }
 
-            await canal.delete();
+            const userId = interaction.customId.split('_')[1];
+            const member = await interaction.guild.members.fetch(userId);
+
+            // ===== APROVAR =====
+            if (interaction.customId.startsWith('aprovar_')) {
+
+                await member.roles.add([ROLE_1_ID, ROLE_2_ID]);
+
+                // 🔥 CRIAR PASTA AUTOMÁTICA
+                const nomeServidor = member.displayName
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]/gi, "-");
+
+                const nomeCanal = `📂-${nomeServidor}`;
+
+                const novoCanal = await interaction.guild.channels.create({
+                    name: nomeCanal,
+                    type: ChannelType.GuildText,
+                    parent: CATEGORIA_ID,
+                    permissionOverwrites: [
+                        {
+                            id: interaction.guild.id,
+                            deny: [PermissionsBitField.Flags.ViewChannel]
+                        },
+                        {
+                            id: userId,
+                            allow: [
+                                PermissionsBitField.Flags.ViewChannel,
+                                PermissionsBitField.Flags.SendMessages,
+                                PermissionsBitField.Flags.ReadMessageHistory
+                            ]
+                        }
+                    ]
+                });
+
+                await novoCanal.send({
+                    content: `👋 Olá ${member}!\n\nSua pasta foi criada automaticamente.\nUse este espaço para enviar seus atendimentos.`
+                });
+
+                await interaction.update({
+                    content: `✅ ${member} aprovado e pasta criada.`,
+                    components: []
+                });
+
+                try {
+                    await member.send(
+                        `🎉 Você foi APROVADO!\n\nSua pasta privada já foi criada no servidor.`
+                    );
+                } catch {}
+
+            }
+            // ===== REPROVAR =====
+            else {
+
+                await interaction.update({
+                    content: `❌ ${member} foi reprovado.`,
+                    components: []
+                });
+
+                try {
+                    await member.send(
+                        `❌ Sua solicitação foi REPROVADA.\n\nProcure a staff para mais informações.`
+                    );
+                } catch {}
+            }
+        }
+    }
+
+    // ===== ENVIO DO FORMULÁRIO =====
+    if (interaction.isModalSubmit()) {
+
+        if (interaction.customId === 'modal_solicitacao') {
+
+            const nome = interaction.fields.getTextInputValue('nome');
+            const pombo = interaction.fields.getTextInputValue('pombo');
+            const periodo = interaction.fields.getTextInputValue('periodo');
+
+            const canalStaff = interaction.guild.channels.cache.get(CANAL_STAFF_ID);
+
+            const embed = new EmbedBuilder()
+                .setTitle('📩 Nova Solicitação')
+                .setColor('Yellow')
+                .addFields(
+                    { name: 'Nome', value: nome },
+                    { name: 'Pombo', value: pombo },
+                    { name: 'Período', value: periodo }
+                )
+                .setFooter({ text: `Solicitado por ${interaction.user.tag}` });
+
+            const aprovarBtn = new ButtonBuilder()
+                .setCustomId(`aprovar_${interaction.user.id}`)
+                .setLabel('Aprovar')
+                .setStyle(ButtonStyle.Success);
+
+            const reprovarBtn = new ButtonBuilder()
+                .setCustomId(`reprovar_${interaction.user.id}`)
+                .setLabel('Reprovar')
+                .setStyle(ButtonStyle.Danger);
+
+            const row = new ActionRowBuilder().addComponents(aprovarBtn, reprovarBtn);
+
+            await canalStaff.send({
+                embeds: [embed],
+                components: [row]
+            });
 
             await interaction.reply({
-                content: "🗑️ Sua pasta foi deletada com sucesso!",
+                content: '📨 Solicitação enviada para staff.',
                 ephemeral: true
             });
         }
     }
-
-    // ======================
-    // BOTÃO
-    // ======================
-
-    if (interaction.isButton()) {
-
-        if (interaction.customId === 'criar_sala') {
-
-            await interaction.deferReply({ ephemeral: true });
-
-            const userId = interaction.user.id;
-            const guild = interaction.guild;
-
-            // 🔒 Verifica se já existe pasta
-            const canalExistente = guild.channels.cache.find(channel => {
-                if (channel.parentId !== CATEGORIA_ID) return false;
-
-                const perm = channel.permissionOverwrites.cache.get(userId);
-                return perm && perm.allow.has(PermissionsBitField.Flags.ViewChannel);
-            });
-
-            if (canalExistente) {
-                return interaction.editReply({
-                    content: "❌ Você já possui uma pasta criada."
-                });
-            }
-
-            // 🔥 Nome baseado no nickname do servidor
-            const nomeServidor = interaction.member.displayName
-                .toLowerCase()
-                .replace(/[^a-z0-9]/gi, "-");
-
-            const nomeCanal = `📂-${nomeServidor}`;
-
-            const novoCanal = await guild.channels.create({
-                name: nomeCanal,
-                type: ChannelType.GuildText,
-                parent: CATEGORIA_ID,
-                permissionOverwrites: [
-                    {
-                        id: guild.id,
-                        deny: [PermissionsBitField.Flags.ViewChannel]
-                    },
-                    {
-                        id: userId,
-                        allow: [
-                            PermissionsBitField.Flags.ViewChannel,
-                            PermissionsBitField.Flags.SendMessages,
-                            PermissionsBitField.Flags.ReadMessageHistory
-                        ]
-                    }
-                ]
-            });
-
-            // ✅ Mensagem automática dentro da pasta
-            await novoCanal.send({
-                content: `👋 Olá ${interaction.user}!
-
-Sua pasta foi criada com sucesso.
-
-📌 Apenas você pode visualizar este canal.
-Use este espaço para enviar seus atendimentos realizados no dia.
-
-Após finalizar, utilize o comando /deletar para remover sua pasta.`
-            });
-
-            await interaction.editReply({
-                content: `✅ Sua pasta foi criada com sucesso: ${novoCanal}`
-            });
-
-            // 🗑️ Apaga a mensagem do painel completamente
-            try {
-                await interaction.message.delete();
-            } catch (err) {
-                console.log("Não foi possível deletar a mensagem do painel.");
-            }
-        }
-    }
 });
 
-client.login(TOKEN);
+client.login(process.env.TOKEN);
