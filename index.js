@@ -1,4 +1,3 @@
-console.log("LOG ID:", process.env.CANAL_LOG_ID);
 const {
     Client,
     GatewayIntentBits,
@@ -338,4 +337,5 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 client.login(TOKEN);
+
 
