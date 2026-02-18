@@ -1,17 +1,15 @@
-{ 
-  "name": "bot-hospital-rp" , 
-  "version": "1.0.0" , 
-  "description": "Bot de aprovação e criação de pastas automático" , 
-  "main": "index.js" , 
-  "type": "commonjs" , 
-  "scripts": { 
-    "start": "node index.js" 
-  }, 
-  "engines": { 
-    "node": ">=v18.20.8" 
-  }, 
-  "dependências": { 
-    "discord.js": "^14.14.1" 
-  } 
+{
+  "name": "bot-hospital-rp",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1"
+  }
 }
-
