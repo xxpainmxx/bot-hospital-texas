@@ -48,6 +48,11 @@ const client = new Client({
 });
 
 // ===============================
+// 🗂️ MEMÓRIA TEMPORÁRIA
+// ===============================
+const solicitacoes = new Map();
+
+// ===============================
 // 📢 FUNÇÃO DE LOG
 // ===============================
 async function enviarLog(guild, titulo, descricao, cor = "Blue") {
@@ -66,17 +71,6 @@ async function enviarLog(guild, titulo, descricao, cor = "Blue") {
         console.error("Erro ao enviar log:", err);
     }
 }
-
-// ===============================
-// 🛑 ANTI-CRASH
-// ===============================
-process.on('unhandledRejection', error => {
-    console.error("Erro não tratado:", error);
-});
-
-process.on('uncaughtException', error => {
-    console.error("Exceção não tratada:", error);
-});
 
 // ===============================
 // 📌 REGISTRAR SLASH COMMAND
@@ -113,22 +107,12 @@ client.on(Events.InteractionCreate, async interaction => {
 
     try {
 
-        // ===== ENVIAR PAINEL =====
+        // ===============================
+        // 📌 ENVIAR PAINEL
+        // ===============================
         if (interaction.isChatInputCommand()) {
 
-            await enviarLog(
-                interaction.guild,
-                "📌 Comando usado",
-                `Usuário: ${interaction.user.tag}`
-            );
-
             if (!interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
-                await enviarLog(
-                    interaction.guild,
-                    "🚫 Sem permissão",
-                    `Usuário: ${interaction.user.tag}`,
-                    "Red"
-                );
                 return interaction.reply({ content: '❌ Apenas staff.', ephemeral: true });
             }
 
@@ -159,14 +143,10 @@ client.on(Events.InteractionCreate, async interaction => {
             return interaction.reply({ content: '✅ Painel enviado.', ephemeral: true });
         }
 
-        // ===== ABRIR FORMULÁRIO =====
+        // ===============================
+        // 📝 ABRIR FORMULÁRIO
+        // ===============================
         if (interaction.isButton() && interaction.customId === 'abrir_formulario') {
-
-            await enviarLog(
-                interaction.guild,
-                "🔘 Botão clicado",
-                `Usuário: ${interaction.user.tag}`
-            );
 
             const modal = new ModalBuilder()
                 .setCustomId('modal_solicitacao')
@@ -199,82 +179,24 @@ client.on(Events.InteractionCreate, async interaction => {
             return interaction.showModal(modal);
         }
 
-        // ===== APROVAR / REPROVAR =====
-        if (interaction.isButton() &&
-            (interaction.customId.startsWith('aprovar_') || interaction.customId.startsWith('reprovar_'))) {
-
-            const userId = interaction.customId.split('_')[1];
-            const member = await interaction.guild.members.fetch(userId).catch(() => null);
-            if (!member) {
-                return interaction.reply({ content: '❌ Usuário não encontrado.', ephemeral: true });
-            }
-
-            if (interaction.customId.startsWith('aprovar_')) {
-
-                await enviarLog(
-                    interaction.guild,
-                    "✅ Usuário aprovado",
-                    `Staff: ${interaction.user.tag}\nAprovado: ${member.user.tag}`,
-                    "Green"
-                );
-
-                await member.roles.add([ROLE_1_ID, ROLE_2_ID]).catch(() => {});
-
-                const novoCanal = await interaction.guild.channels.create({
-                    name: `📂-${member.user.username.toLowerCase().replace(/[^a-z0-9]/gi, '-')}`,
-                    type: ChannelType.GuildText,
-                    parent: CATEGORIA_ID,
-                    permissionOverwrites: [
-                        {
-                            id: interaction.guild.id,
-                            deny: [PermissionsBitField.Flags.ViewChannel]
-                        },
-                        {
-                            id: userId,
-                            allow: [
-                                PermissionsBitField.Flags.ViewChannel,
-                                PermissionsBitField.Flags.SendMessages,
-                                PermissionsBitField.Flags.ReadMessageHistory
-                            ]
-                        }
-                    ]
-                });
-
-                await novoCanal.send(`👋 Olá ${member}, sua pasta foi criada.`);
-
-                await interaction.update({
-                    content: `✅ ${member} aprovado e pasta criada.`,
-                    components: []
-                });
-
-            } else {
-
-                await enviarLog(
-                    interaction.guild,
-                    "❌ Usuário reprovado",
-                    `Staff: ${interaction.user.tag}\nReprovado: ${member.user.tag}`,
-                    "Red"
-                );
-
-                await interaction.update({
-                    content: `❌ ${member} foi reprovado.`,
-                    components: []
-                });
-            }
-        }
-
-        // ===== ENVIO DO MODAL =====
+        // ===============================
+        // 📨 ENVIO DO MODAL
+        // ===============================
         if (interaction.isModalSubmit() && interaction.customId === 'modal_solicitacao') {
-
-            await enviarLog(
-                interaction.guild,
-                "📨 Modal enviado",
-                `Usuário: ${interaction.user.tag}`
-            );
 
             const nome = interaction.fields.getTextInputValue('nome');
             const pombo = interaction.fields.getTextInputValue('pombo');
             const periodo = interaction.fields.getTextInputValue('periodo');
+
+            // 🔥 FORMATAR NOME
+            const nomeFormatado = nome
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '-');
+
+            const nomeCanal = `${nomeFormatado}-${pombo}`;
+
+            // Salvar temporariamente
+            solicitacoes.set(interaction.user.id, nomeCanal);
 
             const canalStaff = interaction.guild.channels.cache.get(CANAL_STAFF_ID);
             if (!canalStaff) {
@@ -308,24 +230,77 @@ client.on(Events.InteractionCreate, async interaction => {
                 components: [row]
             });
 
-            await interaction.reply({
+            return interaction.reply({
                 content: '📨 Solicitação enviada para staff.',
                 ephemeral: true
             });
         }
 
+        // ===============================
+        // ✅ APROVAR / ❌ REPROVAR
+        // ===============================
+        if (interaction.isButton() &&
+            (interaction.customId.startsWith('aprovar_') || interaction.customId.startsWith('reprovar_'))) {
+
+            const userId = interaction.customId.split('_')[1];
+            const member = await interaction.guild.members.fetch(userId).catch(() => null);
+
+            if (!member) {
+                return interaction.reply({ content: '❌ Usuário não encontrado.', ephemeral: true });
+            }
+
+            if (interaction.customId.startsWith('aprovar_')) {
+
+                const nomeCanal = solicitacoes.get(userId);
+                if (!nomeCanal) {
+                    return interaction.reply({ content: '❌ Dados não encontrados.', ephemeral: true });
+                }
+
+                await member.roles.add([ROLE_1_ID, ROLE_2_ID]).catch(() => {});
+
+                const novoCanal = await interaction.guild.channels.create({
+                    name: nomeCanal,
+                    type: ChannelType.GuildText,
+                    parent: CATEGORIA_ID,
+                    permissionOverwrites: [
+                        {
+                            id: interaction.guild.id,
+                            deny: [PermissionsBitField.Flags.ViewChannel]
+                        },
+                        {
+                            id: userId,
+                            allow: [
+                                PermissionsBitField.Flags.ViewChannel,
+                                PermissionsBitField.Flags.SendMessages,
+                                PermissionsBitField.Flags.ReadMessageHistory
+                            ]
+                        }
+                    ]
+                });
+
+                await novoCanal.send(`👋 Olá ${member}, sua pasta foi criada.`);
+
+                solicitacoes.delete(userId);
+
+                await interaction.update({
+                    content: `✅ ${member} aprovado e pasta criada.`,
+                    components: []
+                });
+
+            } else {
+
+                solicitacoes.delete(userId);
+
+                await interaction.update({
+                    content: `❌ ${member} foi reprovado.`,
+                    components: []
+                });
+            }
+        }
+
     } catch (error) {
 
         console.error("Erro na interação:", error);
-
-        if (interaction.guild) {
-            await enviarLog(
-                interaction.guild,
-                "🔥 ERRO NO BOT",
-                `Erro: ${error.message}`,
-                "Red"
-            );
-        }
 
         if (!interaction.replied) {
             await interaction.reply({
@@ -337,5 +312,3 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 client.login(TOKEN);
-
-
