@@ -51,26 +51,7 @@ const client = new Client({
 // 🗂️ MEMÓRIA TEMPORÁRIA
 // ===============================
 const solicitacoes = new Map();
-
-// ===============================
-// 📢 FUNÇÃO DE LOG
-// ===============================
-async function enviarLog(guild, titulo, descricao, cor = "Blue") {
-    try {
-        const canal = guild.channels.cache.get(CANAL_LOG_ID);
-        if (!canal) return;
-
-        const embed = new EmbedBuilder()
-            .setTitle(titulo)
-            .setDescription(descricao)
-            .setColor(cor)
-            .setTimestamp();
-
-        await canal.send({ embeds: [embed] });
-    } catch (err) {
-        console.error("Erro ao enviar log:", err);
-    }
-}
+const nickAntigo = new Map();
 
 // ===============================
 // 📌 REGISTRAR SLASH COMMAND
@@ -133,12 +114,10 @@ client.on(Events.InteractionCreate, async interaction => {
 
             const row = new ActionRowBuilder().addComponents(button);
 
-            const msg = await canal.send({
+            await canal.send({
                 embeds: [embed],
                 components: [row]
             });
-
-            await msg.pin();
 
             return interaction.reply({ content: '✅ Painel enviado.', ephemeral: true });
         }
@@ -189,12 +168,16 @@ client.on(Events.InteractionCreate, async interaction => {
             const periodo = interaction.fields.getTextInputValue('periodo');
 
             const nomeFormatado = nome
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, '-');
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '-');
 
-            const nomeCanal = `📁-${nomeFormatado}-${pombo}`;
+            const nomeFinal = `${nomeFormatado}-${pombo}`;
+            const nomeCanal = `📁-${nomeFinal}`;
 
-            solicitacoes.set(interaction.user.id, nomeCanal);
+            solicitacoes.set(interaction.user.id, {
+                nomeCanal,
+                nomeFinal
+            });
 
             const canalStaff = interaction.guild.channels.cache.get(CANAL_STAFF_ID);
             if (!canalStaff) {
@@ -242,31 +225,37 @@ client.on(Events.InteractionCreate, async interaction => {
 
             const userId = interaction.customId.split('_')[1];
             const member = await interaction.guild.members.fetch(userId).catch(() => null);
-
-            if (!member) {
-                return interaction.reply({ content: '❌ Usuário não encontrado.', ephemeral: true });
-            }
+            if (!member) return;
 
             if (interaction.customId.startsWith('aprovar_')) {
 
-                const nomeCanal = solicitacoes.get(userId);
-                if (!nomeCanal) {
+                const dados = solicitacoes.get(userId);
+                if (!dados) {
                     return interaction.reply({ content: '❌ Dados não encontrados.', ephemeral: true });
                 }
 
                 await member.roles.add([ROLE_1_ID, ROLE_2_ID]).catch(() => {});
 
-                // 📩 DM APROVAÇÃO
+                // Salvar nick antigo
+                nickAntigo.set(userId, member.nickname || member.user.username);
+
+                // Alterar nickname (SEM emoji)
                 try {
-                    await member.send(
-                        `✅ Olá ${member.user.username}, sua solicitação foi APROVADA!\n\nSua pasta foi criada no servidor. 🎉`
-                    );
+                    await member.setNickname(dados.nomeFinal);
                 } catch (err) {
-                    console.log("DM fechada.");
+                    console.log("Erro ao alterar nickname.");
                 }
 
+                // DM aprovação
+                try {
+                    await member.send(
+                        `✅ Sua solicitação foi APROVADA!\n\nSeu nome no servidor agora é: ${dados.nomeFinal}`
+                    );
+                } catch {}
+
+                // Criar canal com emoji
                 const novoCanal = await interaction.guild.channels.create({
-                    name: nomeCanal,
+                    name: dados.nomeCanal,
                     type: ChannelType.GuildText,
                     parent: CATEGORIA_ID,
                     permissionOverwrites: [
@@ -285,25 +274,22 @@ client.on(Events.InteractionCreate, async interaction => {
                     ]
                 });
 
-                await novoCanal.send(`📁 Pasta do(a) Dr ${member}. criada com sucesso. Todos os registros, relatórios e documentos deverão ser organizados aqui conforme o protocolo interno.`);
+                await novoCanal.send(`👋 Olá ${member}, sua pasta foi criada.`);
 
                 solicitacoes.delete(userId);
 
                 await interaction.update({
-                    content: `✅ ${member} aprovado e pasta criada.`,
+                    content: `✅ ${member} aprovado, nick alterado e pasta criada.`,
                     components: []
                 });
 
             } else {
 
-                // 📩 DM REPROVAÇÃO
                 try {
                     await member.send(
-                        `❌ Olá ${member.user.username}, infelizmente sua solicitação foi REPROVADA.\n\nPara mais informações, entre em contato com a staff.`
+                        `❌ Sua solicitação foi REPROVADA.\n\nPara mais informações fale com a staff.`
                     );
-                } catch (err) {
-                    console.log("DM fechada.");
-                }
+                } catch {}
 
                 solicitacoes.delete(userId);
 
@@ -315,18 +301,8 @@ client.on(Events.InteractionCreate, async interaction => {
         }
 
     } catch (error) {
-
         console.error("Erro na interação:", error);
-
-        if (!interaction.replied) {
-            await interaction.reply({
-                content: "❌ Ocorreu um erro interno.",
-                ephemeral: true
-            });
-        }
     }
 });
 
 client.login(TOKEN);
-
-
