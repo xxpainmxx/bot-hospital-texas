@@ -1,16 +1,11 @@
 {
-  "name": "bot-hospital-rp",
+  "name": "bot-discord-pastas",
   "version": "1.0.0",
-  "description": "Bot Discord",
+  "description": "Bot que cria categorias no Discord",
   "main": "index.js",
-  "type": "commonjs",
   "scripts": {
     "start": "node index.js"
   },
-  "engines": {
-    "node": "18.x"
-  },
   "dependencies": {
-    "discord.js": "14.14.1"
+    "discord.js": "^14.14.1"
   }
-}
