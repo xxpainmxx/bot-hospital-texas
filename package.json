@@ -1,13 +1,16 @@
-{
-  "name": "bot-discord-pastas",
-  "version": "1.0.0",
-  "description": "Bot que cria categorias no Discord",
-  "main": "index.js",
-  "scripts": {
-    "start": "node index.js"
-  },
- "dependencies": {
-  "dotenv": "^16.x.x"
-}
-
+{ 
+  "name": "bot-hospital-rp" , 
+  "version": "1.0.0" , 
+  "description": "Bot de aprovação e criação de pastas automático" , 
+  "main": "index.js" , 
+  "type": "commonjs" , 
+  "scripts": { 
+    "start": "node index.js" 
+  }, 
+  "engines": { 
+    "node": ">=18.0.0" 
+  }, 
+  "dependências": { 
+    "discord.js": "^14.14.1" 
+  } 
 }
