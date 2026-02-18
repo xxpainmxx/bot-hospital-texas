@@ -189,10 +189,10 @@ client.on(Events.InteractionCreate, async interaction => {
             const periodo = interaction.fields.getTextInputValue('periodo');
 
             const nomeFormatado = nome
-                .toLowerCase()
-                .replace(/[^a-z0-9]/g, '-');
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '-');
 
-            const nomeCanal = `${nomeFormatado}-${pombo}`;
+            const nomeCanal = `📁-${nomeFormatado}-${pombo}`;
 
             solicitacoes.set(interaction.user.id, nomeCanal);
 
@@ -328,4 +328,5 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 client.login(TOKEN);
+
 
