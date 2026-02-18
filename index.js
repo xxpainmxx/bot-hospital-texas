@@ -1,4 +1,4 @@
-require('dotenv').config();
+
 
 const {
     Client,
@@ -247,3 +247,4 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 client.login(TOKEN);
+
