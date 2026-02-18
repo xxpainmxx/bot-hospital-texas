@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js"
   },
-  "dependencies": {
-    "discord.js": "^14.14.1"
-  }
+ "dependencies": {
+  "dotenv": "^16.x.x"
+}
+
 }
