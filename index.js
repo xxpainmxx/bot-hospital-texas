@@ -51,7 +51,9 @@ const client = new Client({
 // 📊 SISTEMA DE LOGS
 // ===============================
 async function enviarLog(guild, mensagem) {
+
     try {
+
         const canal = guild.channels.cache.get(CANAL_LOG_ID);
         if (!canal) return;
 
@@ -66,6 +68,19 @@ async function enviarLog(guild, mensagem) {
     } catch (err) {
         console.error("Erro ao enviar log:", err);
     }
+
+}
+
+// ===============================
+// 🚫 VERIFICAR PASTA DUPLICADA
+// ===============================
+async function verificarPasta(guild, nomeCanal) {
+
+    const pasta = guild.channels.cache.find(
+        c => c.name === nomeCanal
+    );
+
+    return pasta ? true : false;
 }
 
 const solicitacoes = new Map();
@@ -80,29 +95,47 @@ const commands = [
 const rest = new REST({ version: '10' }).setToken(TOKEN);
 
 (async () => {
+
     try {
+
         await rest.put(
             Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
             { body: commands }
         );
+
         console.log("✅ Slash command registrado.");
+
     } catch (err) {
+
         console.error("Erro ao registrar comando:", err);
+
     }
+
 })();
 
 client.once(Events.ClientReady, () => {
+
     console.log(`✅ Bot online como ${client.user.tag}`);
+
 });
 
+// ===============================
+// 🎛 INTERAÇÕES
+// ===============================
 client.on(Events.InteractionCreate, async interaction => {
 
     try {
 
+        // ===============================
+        // ENVIAR PAINEL
+        // ===============================
         if (interaction.isChatInputCommand()) {
 
             if (!interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
-                return interaction.reply({ content: '❌ Apenas staff.', ephemeral: true });
+                return interaction.reply({
+                    content: '❌ Apenas staff.',
+                    ephemeral: true
+                });
             }
 
             const canal = interaction.guild.channels.cache.get(CANAL_PAINEL_ID);
@@ -113,10 +146,12 @@ client.on(Events.InteractionCreate, async interaction => {
                 .setColor('Blue');
 
             const row = new ActionRowBuilder().addComponents(
+
                 new ButtonBuilder()
                     .setCustomId('abrir_formulario')
                     .setLabel('Solicitar Aprovação')
                     .setStyle(ButtonStyle.Primary)
+
             );
 
             await canal.send({
@@ -124,11 +159,21 @@ client.on(Events.InteractionCreate, async interaction => {
                 components: [row]
             });
 
-            await enviarLog(interaction.guild, `📋 Painel enviado por ${interaction.user.tag}`);
+            await enviarLog(
+                interaction.guild,
+                `📋 Painel enviado por ${interaction.user.tag}`
+            );
 
-            return interaction.reply({ content: '✅ Painel enviado.', ephemeral: true });
+            return interaction.reply({
+                content: '✅ Painel enviado.',
+                ephemeral: true
+            });
+
         }
 
+        // ===============================
+        // ABRIR FORMULÁRIO
+        // ===============================
         if (interaction.isButton() && interaction.customId === "abrir_formulario") {
 
             const modal = new ModalBuilder()
@@ -160,8 +205,12 @@ client.on(Events.InteractionCreate, async interaction => {
             );
 
             return interaction.showModal(modal);
+
         }
 
+        // ===============================
+        // ENVIO DO FORMULÁRIO
+        // ===============================
         if (interaction.isModalSubmit()) {
 
             const nome = interaction.fields.getTextInputValue("nome");
@@ -189,26 +238,39 @@ client.on(Events.InteractionCreate, async interaction => {
                 );
 
             const row = new ActionRowBuilder().addComponents(
+
                 new ButtonBuilder()
                     .setCustomId(`aprovar_${interaction.user.id}`)
                     .setLabel("Aprovar")
                     .setStyle(ButtonStyle.Success),
+
                 new ButtonBuilder()
                     .setCustomId(`reprovar_${interaction.user.id}`)
                     .setLabel("Reprovar")
                     .setStyle(ButtonStyle.Danger)
+
             );
 
-            await canalStaff.send({ embeds: [embed], components: [row] });
+            await canalStaff.send({
+                embeds: [embed],
+                components: [row]
+            });
 
-            await enviarLog(interaction.guild, `📩 Nova solicitação enviada por ${interaction.user.tag}`);
+            await enviarLog(
+                interaction.guild,
+                `📩 Nova solicitação enviada por ${interaction.user.tag}`
+            );
 
             return interaction.reply({
                 content: "📨 Solicitação enviada para staff.",
                 ephemeral: true
             });
+
         }
 
+        // ===============================
+        // APROVAR / REPROVAR
+        // ===============================
         if (interaction.isButton()) {
 
             const userId = interaction.customId.split("_")[1];
@@ -219,6 +281,28 @@ client.on(Events.InteractionCreate, async interaction => {
             if (interaction.customId.startsWith("aprovar_")) {
 
                 const dados = solicitacoes.get(userId);
+
+                // 🚫 VERIFICAR DUPLICAÇÃO
+                const pastaExiste = await verificarPasta(
+                    interaction.guild,
+                    dados.nomeCanal
+                );
+
+                if (pastaExiste) {
+
+                    await interaction.reply({
+                        content: "⚠️ Este usuário já possui uma pasta.",
+                        ephemeral: true
+                    });
+
+                    await enviarLog(
+                        interaction.guild,
+                        `⚠️ Tentativa de pasta duplicada para ${member.user.tag}`
+                    );
+
+                    return;
+
+                }
 
                 await member.roles.add([
                     ROLE_1_ID,
@@ -231,13 +315,17 @@ client.on(Events.InteractionCreate, async interaction => {
                 } catch {}
 
                 try {
-                    await member.send(`✅ Você foi aprovado!\nNome no servidor: ${dados.nomeFinal}`);
+                    await member.send(
+                        `✅ Você foi aprovado!\nNome no servidor: ${dados.nomeFinal}`
+                    );
                 } catch {}
 
                 const novoCanal = await interaction.guild.channels.create({
+
                     name: dados.nomeCanal,
                     type: ChannelType.GuildText,
                     parent: CATEGORIA_ID,
+
                     permissionOverwrites: [
                         {
                             id: interaction.guild.id,
@@ -251,11 +339,13 @@ client.on(Events.InteractionCreate, async interaction => {
                             ]
                         }
                     ]
+
                 });
 
                 await novoCanal.send(`📁 Pasta criada para ${member}.`);
 
-                await enviarLog(interaction.guild,
+                await enviarLog(
+                    interaction.guild,
                     `✅ ${member.user.tag} aprovado por ${interaction.user.tag}\n📁 Pasta criada: ${dados.nomeCanal}`
                 );
 
@@ -266,13 +356,16 @@ client.on(Events.InteractionCreate, async interaction => {
                     components: []
                 });
 
-            } else if (interaction.customId.startsWith("reprovar_")) {
+            }
+
+            else if (interaction.customId.startsWith("reprovar_")) {
 
                 try {
                     await member.send("❌ Sua solicitação foi reprovada.");
                 } catch {}
 
-                await enviarLog(interaction.guild,
+                await enviarLog(
+                    interaction.guild,
                     `❌ ${member.user.tag} foi reprovado por ${interaction.user.tag}`
                 );
 
@@ -282,16 +375,26 @@ client.on(Events.InteractionCreate, async interaction => {
                     content: `❌ ${member} reprovado.`,
                     components: []
                 });
+
             }
+
         }
 
     } catch (error) {
+
         console.error("Erro:", error);
 
         if (interaction.guild) {
-            enviarLog(interaction.guild, `⚠️ Erro no sistema:\n${error.message}`);
+
+            enviarLog(
+                interaction.guild,
+                `⚠️ Erro no sistema:\n${error.message}`
+            );
+
         }
+
     }
+
 });
 
 client.login(TOKEN);
