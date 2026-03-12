@@ -25,6 +25,7 @@ const {
     STAFF_ROLE_ID,
     ROLE_1_ID,
     ROLE_2_ID,
+    ROLE_3_ID,
     CANAL_PAINEL_ID,
     CANAL_STAFF_ID,
     CATEGORIA_ID,
@@ -302,3 +303,4 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 client.login(TOKEN);
+
