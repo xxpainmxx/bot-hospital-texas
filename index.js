@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const {
     Client,
     GatewayIntentBits,
@@ -18,8 +20,9 @@ const {
 
 const config = require('./config.json');
 
+const TOKEN = process.env.TOKEN;
+
 const {
-    TOKEN,
     CLIENT_ID,
     GUILD_ID,
     STAFF_ROLE_ID,
@@ -33,7 +36,7 @@ const {
 } = config;
 
 if (!TOKEN || !CLIENT_ID || !GUILD_ID) {
-    console.error("❌ Variáveis não definidas no config.json");
+    console.error("❌ Variáveis não definidas.");
     process.exit(1);
 }
 
@@ -92,16 +95,10 @@ client.once(Events.ClientReady, () => {
     console.log(`✅ Bot online como ${client.user.tag}`);
 });
 
-// ===============================
-// 🎛 INTERAÇÕES
-// ===============================
 client.on(Events.InteractionCreate, async interaction => {
 
     try {
 
-        // ===============================
-        // ENVIAR PAINEL
-        // ===============================
         if (interaction.isChatInputCommand()) {
 
             if (!interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
@@ -132,9 +129,6 @@ client.on(Events.InteractionCreate, async interaction => {
             return interaction.reply({ content: '✅ Painel enviado.', ephemeral: true });
         }
 
-        // ===============================
-        // ABRIR FORMULÁRIO
-        // ===============================
         if (interaction.isButton() && interaction.customId === "abrir_formulario") {
 
             const modal = new ModalBuilder()
@@ -168,9 +162,6 @@ client.on(Events.InteractionCreate, async interaction => {
             return interaction.showModal(modal);
         }
 
-        // ===============================
-        // ENVIO DO FORMULÁRIO
-        // ===============================
         if (interaction.isModalSubmit()) {
 
             const nome = interaction.fields.getTextInputValue("nome");
@@ -218,9 +209,6 @@ client.on(Events.InteractionCreate, async interaction => {
             });
         }
 
-        // ===============================
-        // APROVAR / REPROVAR
-        // ===============================
         if (interaction.isButton()) {
 
             const userId = interaction.customId.split("_")[1];
@@ -232,7 +220,11 @@ client.on(Events.InteractionCreate, async interaction => {
 
                 const dados = solicitacoes.get(userId);
 
-                await member.roles.add([ROLE_1_ID, ROLE_2_ID]).catch(() => {});
+                await member.roles.add([
+                    ROLE_1_ID,
+                    ROLE_2_ID,
+                    ROLE_3_ID
+                ]).catch(() => {});
 
                 try {
                     await member.setNickname(dados.nomeFinal);
@@ -303,4 +295,3 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 client.login(TOKEN);
-
