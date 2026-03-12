@@ -65,15 +65,21 @@ canal.send({embeds:[embed]});
 
 // ================= ANTI PASTA DUPLICADA =================
 
-async function verificarPasta(guild, userId){
+async function verificarPasta(guild,userId){
 
-const canais = guild.channels.cache.filter(
-c => c.parentId === CATEGORIA_ID
-);
+const canais = await guild.channels.fetch();
 
-const pasta = canais.find(c =>
-c.permissionOverwrites.cache.has(userId)
-);
+const pasta = canais.find(c=>{
+
+if(!c) return false;
+
+if(c.parentId !== CATEGORIA_ID) return false;
+
+const perm = c.permissionOverwrites?.cache?.get(userId);
+
+return perm ? true : false;
+
+});
 
 return pasta ? true : false;
 
@@ -82,19 +88,18 @@ return pasta ? true : false;
 
 // ================= SLASH COMMAND =================
 
-const commands = [
+const commands=[
 
 new SlashCommandBuilder()
 .setName('enviar-painel')
 .setDescription('Enviar painel de solicitação')
-
 .toJSON()
 
 ];
 
-const rest = new REST({version:'10'}).setToken(TOKEN);
+const rest=new REST({version:'10'}).setToken(TOKEN);
 
-(async () => {
+(async()=>{
 
 await rest.put(
 Routes.applicationGuildCommands(CLIENT_ID,GUILD_ID),
@@ -106,7 +111,7 @@ Routes.applicationGuildCommands(CLIENT_ID,GUILD_ID),
 
 // ================= BOT ONLINE =================
 
-client.once(Events.ClientReady, () => {
+client.once(Events.ClientReady,()=>{
 
 console.log(`✅ Bot online ${client.user.tag}`);
 
@@ -115,11 +120,12 @@ console.log(`✅ Bot online ${client.user.tag}`);
 
 // ================= INTERAÇÕES =================
 
-client.on(Events.InteractionCreate, async interaction => {
+client.on(Events.InteractionCreate,async interaction=>{
 
 try{
 
-// ENVIAR PAINEL
+
+// ================= PAINEL =================
 
 if(interaction.isChatInputCommand()){
 
@@ -127,29 +133,23 @@ if(!interaction.member.roles.cache.has(STAFF_ROLE_ID)){
 
 return interaction.reply({
 content:'❌ Apenas staff.',
-ephemeral:true
+flags:64
 });
 
 }
 
-const canal = interaction.guild.channels.cache.get(CANAL_PAINEL_ID);
+const canal=interaction.guild.channels.cache.get(CANAL_PAINEL_ID);
 
-const embed = new EmbedBuilder()
-
+const embed=new EmbedBuilder()
 .setTitle("📋 Solicitação")
-
 .setDescription("Clique no botão abaixo para solicitar aprovação.")
-
 .setColor("Blue");
 
-const row = new ActionRowBuilder().addComponents(
+const row=new ActionRowBuilder().addComponents(
 
 new ButtonBuilder()
-
 .setCustomId("abrir_formulario")
-
 .setLabel("Solicitar")
-
 .setStyle(ButtonStyle.Primary)
 
 );
@@ -157,7 +157,6 @@ new ButtonBuilder()
 await canal.send({
 
 embeds:[embed],
-
 components:[row]
 
 });
@@ -165,60 +164,43 @@ components:[row]
 return interaction.reply({
 
 content:"✅ Painel enviado",
-
-ephemeral:true
+flags:64
 
 });
 
 }
 
 
-// ================= ABRIR FORMULÁRIO =================
+// ================= ABRIR FORM =================
 
-if(interaction.isButton() && interaction.customId === "abrir_formulario"){
+if(interaction.isButton() && interaction.customId==="abrir_formulario"){
 
-const modal = new ModalBuilder()
-
+const modal=new ModalBuilder()
 .setCustomId("modal")
-
 .setTitle("Solicitação");
 
-const nome = new TextInputBuilder()
-
+const nome=new TextInputBuilder()
 .setCustomId("nome")
-
 .setLabel("Nome")
-
 .setStyle(TextInputStyle.Short)
-
 .setRequired(true);
 
-const pombo = new TextInputBuilder()
-
+const pombo=new TextInputBuilder()
 .setCustomId("pombo")
-
 .setLabel("Pombo")
-
 .setStyle(TextInputStyle.Short)
-
 .setRequired(true);
 
-const periodo = new TextInputBuilder()
-
+const periodo=new TextInputBuilder()
 .setCustomId("periodo")
-
 .setLabel("Período")
-
 .setStyle(TextInputStyle.Short)
-
 .setRequired(true);
 
 modal.addComponents(
 
 new ActionRowBuilder().addComponents(nome),
-
 new ActionRowBuilder().addComponents(pombo),
-
 new ActionRowBuilder().addComponents(periodo)
 
 );
@@ -228,64 +210,50 @@ return interaction.showModal(modal);
 }
 
 
-// ================= ENVIO DO FORM =================
+// ================= FORM ENVIADO =================
 
 if(interaction.isModalSubmit()){
 
-const nome = interaction.fields.getTextInputValue("nome");
+const nome=interaction.fields.getTextInputValue("nome");
+const pombo=interaction.fields.getTextInputValue("pombo");
+const periodo=interaction.fields.getTextInputValue("periodo");
 
-const pombo = interaction.fields.getTextInputValue("pombo");
+const nomeFormatado=nome.toLowerCase().replace(/[^a-z0-9]/g,"-");
 
-const periodo = interaction.fields.getTextInputValue("periodo");
+const nomeFinal=`${nomeFormatado}-${pombo}`;
 
-const nomeFormatado = nome.toLowerCase().replace(/[^a-z0-9]/g,"-");
-
-const nomeFinal = `${nomeFormatado}-${pombo}`;
-
-const nomeCanal = `pasta-${nomeFinal}`;
+const nomeCanal=`pasta-${nomeFinal}`;
 
 solicitacoes.set(interaction.user.id,{
 
 nomeCanal,
-
 nomeFinal
 
 });
 
-const canalStaff = interaction.guild.channels.cache.get(CANAL_STAFF_ID);
+const canalStaff=interaction.guild.channels.cache.get(CANAL_STAFF_ID);
 
-const embed = new EmbedBuilder()
-
+const embed=new EmbedBuilder()
 .setTitle("📩 Nova solicitação")
-
 .setColor("Yellow")
-
 .addFields(
 
 {name:"Nome",value:nome},
-
 {name:"Pombo",value:pombo},
-
 {name:"Periodo",value:periodo}
 
 );
 
-const row = new ActionRowBuilder().addComponents(
+const row=new ActionRowBuilder().addComponents(
 
 new ButtonBuilder()
-
 .setCustomId(`aprovar_${interaction.user.id}`)
-
 .setLabel("Aprovar")
-
 .setStyle(ButtonStyle.Success),
 
 new ButtonBuilder()
-
 .setCustomId(`reprovar_${interaction.user.id}`)
-
 .setLabel("Reprovar")
-
 .setStyle(ButtonStyle.Danger)
 
 );
@@ -293,7 +261,6 @@ new ButtonBuilder()
 await canalStaff.send({
 
 embeds:[embed],
-
 components:[row]
 
 });
@@ -301,8 +268,7 @@ components:[row]
 return interaction.reply({
 
 content:"📨 Solicitação enviada",
-
-ephemeral:true
+flags:64
 
 });
 
@@ -313,24 +279,23 @@ ephemeral:true
 
 if(interaction.isButton() && interaction.customId.startsWith("aprovar_")){
 
-const userId = interaction.customId.split("_")[1];
+const userId=interaction.customId.split("_")[1];
 
-const member = await interaction.guild.members.fetch(userId);
+const member=await interaction.guild.members.fetch(userId);
 
-const dados = solicitacoes.get(userId);
+const dados=solicitacoes.get(userId);
 
 
-// 🚫 ANTI PASTA DUPLICADA
+// ANTI DUPLICAÇÃO
 
-const pastaExiste = await verificarPasta(interaction.guild,userId);
+const pastaExiste=await verificarPasta(interaction.guild,userId);
 
 if(pastaExiste){
 
 return interaction.reply({
 
 content:"⚠️ Este usuário já possui uma pasta.",
-
-ephemeral:true
+flags:64
 
 });
 
@@ -342,9 +307,7 @@ ephemeral:true
 await member.roles.add([
 
 ROLE_1_ID,
-
 ROLE_2_ID,
-
 ROLE_3_ID
 
 ]).catch(()=>{});
@@ -355,9 +318,9 @@ ROLE_3_ID
 await member.setNickname(dados.nomeFinal).catch(()=>{});
 
 
-// CRIAR CANAL
+// CRIAR PASTA
 
-const canal = await interaction.guild.channels.create({
+const canal=await interaction.guild.channels.create({
 
 name:dados.nomeCanal,
 
@@ -368,25 +331,16 @@ parent:CATEGORIA_ID,
 permissionOverwrites:[
 
 {
-
 id:interaction.guild.id,
-
 deny:[PermissionsBitField.Flags.ViewChannel]
-
 },
 
 {
-
 id:userId,
-
 allow:[
-
 PermissionsBitField.Flags.ViewChannel,
-
 PermissionsBitField.Flags.SendMessages
-
 ]
-
 }
 
 ]
@@ -399,8 +353,7 @@ canal.send(`📁 Pasta criada para <@${userId}>`);
 await enviarLog(
 
 interaction.guild,
-
-`✅ ${member.user.tag} aprovado`
+`✅ ${member.user.tag} aprovado e pasta criada`
 
 );
 
@@ -409,7 +362,6 @@ solicitacoes.delete(userId);
 interaction.update({
 
 content:`✅ ${member} aprovado`,
-
 components:[]
 
 });
@@ -421,16 +373,15 @@ components:[]
 
 if(interaction.isButton() && interaction.customId.startsWith("reprovar_")){
 
-const userId = interaction.customId.split("_")[1];
+const userId=interaction.customId.split("_")[1];
 
-const member = await interaction.guild.members.fetch(userId);
+const member=await interaction.guild.members.fetch(userId);
 
 await member.send("❌ Sua solicitação foi reprovada").catch(()=>{});
 
 await enviarLog(
 
 interaction.guild,
-
 `❌ ${member.user.tag} reprovado`
 
 );
@@ -440,7 +391,6 @@ solicitacoes.delete(userId);
 interaction.update({
 
 content:`❌ ${member} reprovado`,
-
 components:[]
 
 });
