@@ -32,17 +32,28 @@ ROLE_3_ID,
 CANAL_PAINEL_ID,
 CANAL_STAFF_ID,
 CATEGORIA_ID,
-CANAL_LOG_ID
+CANAL_LOG_ID,
+CANAL_WEBHOOK_ATENDIMENTOS,
+CANAL_RANKING_ATENDIMENTOS
 } = config;
 
 const client = new Client({
 intents: [
 GatewayIntentBits.Guilds,
-GatewayIntentBits.GuildMembers
+GatewayIntentBits.GuildMembers,
+GatewayIntentBits.GuildMessages,
+GatewayIntentBits.MessageContent
 ]
 });
 
 const solicitacoes = new Map();
+
+
+// ================= SISTEMA ATENDIMENTOS =================
+
+const atendimentos = {};
+const ticketsProcessados = new Set();
+let mensagemRanking = null;
 
 
 // ================= LOG =================
@@ -115,7 +126,123 @@ client.once(Events.ClientReady,()=>{
 
 console.log(`✅ Bot online ${client.user.tag}`);
 
+setInterval(()=>{
+
+atualizarRanking();
+
+},60000);
+
 });
+
+
+// ================= LER WEBHOOK =================
+
+client.on("messageCreate", async (message) => {
+
+if(message.channel.id !== CANAL_WEBHOOK_ATENDIMENTOS) return;
+
+if(!message.webhookId) return;
+
+if(!message.embeds.length) return;
+
+const embed = message.embeds[0];
+
+
+// FILTRA APENAS FINALIZADO
+
+if(!embed.description?.toLowerCase().includes("finalizado")) return;
+
+
+// PEGA MÉDICO
+
+const campoMedico = embed.fields.find(f => 
+f.name.toLowerCase().includes("médico") ||
+f.name.toLowerCase().includes("medico")
+);
+
+if(!campoMedico) return;
+
+const medico = campoMedico.value.trim();
+
+
+// PEGA TICKET
+
+const campoTicket = embed.fields.find(f =>
+f.name.toLowerCase().includes("ticket")
+);
+
+if(!campoTicket) return;
+
+const ticket = campoTicket.value.trim();
+
+
+// ANTI DUPLICAÇÃO
+
+if(ticketsProcessados.has(ticket)) return;
+
+ticketsProcessados.add(ticket);
+
+
+// CONTADOR
+
+if(!atendimentos[medico]){
+
+atendimentos[medico] = 0;
+
+}
+
+atendimentos[medico]++;
+
+});
+
+
+// ================= RANKING =================
+
+async function atualizarRanking(){
+
+try{
+
+const canal = await client.channels.fetch(CANAL_RANKING_ATENDIMENTOS);
+
+if(!canal) return;
+
+const lista = Object.entries(atendimentos);
+
+lista.sort((a,b)=> b[1] - a[1]);
+
+let tabela = "🏥 **Ranking de Atendimentos Médicos**\n\n";
+
+if(lista.length === 0){
+
+tabela += "Nenhum atendimento registrado.";
+
+}else{
+
+lista.forEach((medico,i)=>{
+
+tabela += `**${i+1}°** - ${medico[0]} | 🩺 ${medico[1]} atendimentos\n`;
+
+});
+
+}
+
+if(!mensagemRanking){
+
+mensagemRanking = await canal.send(tabela);
+
+}else{
+
+mensagemRanking.edit(tabela);
+
+}
+
+}catch(err){
+
+console.log("Erro ranking:",err);
+
+}
+
+}
 
 
 // ================= INTERAÇÕES =================
@@ -285,9 +412,6 @@ const member=await interaction.guild.members.fetch(userId);
 
 const dados=solicitacoes.get(userId);
 
-
-// ANTI DUPLICAÇÃO
-
 const pastaExiste=await verificarPasta(interaction.guild,userId);
 
 if(pastaExiste){
@@ -301,31 +425,18 @@ flags:64
 
 }
 
-
-// ADD CARGOS
-
 await member.roles.add([
-
 ROLE_1_ID,
 ROLE_2_ID,
 ROLE_3_ID
-
 ]).catch(()=>{});
 
-
-// NICK
-
 await member.setNickname(dados.nomeFinal).catch(()=>{});
-
-
-// CRIAR PASTA
 
 const canal=await interaction.guild.channels.create({
 
 name:dados.nomeCanal,
-
 type:ChannelType.GuildText,
-
 parent:CATEGORIA_ID,
 
 permissionOverwrites:[
@@ -347,23 +458,18 @@ PermissionsBitField.Flags.SendMessages
 
 });
 
-
 canal.send(`📁 Pasta criada para <@${userId}>`);
 
 await enviarLog(
-
 interaction.guild,
 `✅ ${member.user.tag} aprovado e pasta criada`
-
 );
 
 solicitacoes.delete(userId);
 
 interaction.update({
-
 content:`✅ ${member} aprovado`,
 components:[]
-
 });
 
 }
@@ -380,19 +486,15 @@ const member=await interaction.guild.members.fetch(userId);
 await member.send("❌ Sua solicitação foi reprovada").catch(()=>{});
 
 await enviarLog(
-
 interaction.guild,
 `❌ ${member.user.tag} reprovado`
-
 );
 
 solicitacoes.delete(userId);
 
 interaction.update({
-
 content:`❌ ${member} reprovado`,
 components:[]
-
 });
 
 }
@@ -404,6 +506,5 @@ console.log(err);
 }
 
 });
-
 
 client.login(TOKEN);
